@@ -1,21 +1,16 @@
 {
   "name": "js-cli",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "create-subproject": "node create-subproject.js",
-    "js-cli": "./cli.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "inquirer": "^8.2.6",
-    "ncp": "^2.0.0"
+  "description": "A simple CLI tool",
+  "main": "cli.js",
+  "bin": {
+    "js-cli": "cli.js"
   },
   "dependencies": {
-    "shelljs": "^0.8.5"
-  }
+    "dotenv": "^10.0.0",
+    "inquirer": "^8.4.0",
+    "simple-git": "^3.12.0",
+    "fs-extra": "^10.0.0"
+  },
+  "preferGlobal": true
 }

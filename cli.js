@@ -1,63 +1,59 @@
 #!/usr/bin/env node
-
-const { exec } = require("shelljs");
-const inquirer = require("inquirer");
+const { prompt } = require("inquirer");
+const simpleGit = require("simple-git");
+const fs = require("fs-extra");
 const path = require("path");
-const fs = require("fs");
+const os = require("os");
 
-const templatesDir = path.join(__dirname, "templates");
+const repoUrl = "git@github.com:abhinav-sendinblue/js-templates.git"; // Replace with your repo URL
+const tempDir = path.join(os.tmpdir(), "templates-repo");
 
-// Function to prompt user for project type
-function promptForProjectType() {
-  return inquirer.prompt([
-    {
-      type: "list",
-      name: "template",
-      message: "Choose a project template:",
-      choices: fs.readdirSync(templatesDir),
-    },
-    {
-      type: "input",
-      name: "projectName",
-      message: "Enter project name:",
-      validate: function (input) {
-        // Validate if directory with the same name already exists
-        const projectPath = path.join(process.cwd(), input);
-        if (fs.existsSync(projectPath)) {
-          return "Directory already exists. Please choose a different project name.";
-        }
-        return true;
-      },
-    },
-  ]);
+async function getTemplates() {
+  const templatesDir = path.join(tempDir, "templates"); // Assuming templates are under 'templates' directory
+  const templates = await fs.readdir(templatesDir);
+  return templates;
 }
 
-// Function to copy template directory to destination
-function copyTemplate(templateName, projectName) {
-  const templatePath = path.join(templatesDir, templateName);
-  const destinationPath = path.join(process.cwd(), projectName);
-  exec(`cp -r ${templatePath} ${destinationPath}`);
-
-  // Read and modify package.json
-  const packageJsonPath = path.join(destinationPath, "package.json");
-  if (fs.existsSync(packageJsonPath)) {
-    const packageJsonContent = fs.readFileSync(packageJsonPath, "utf8");
-    const packageJsonData = JSON.parse(packageJsonContent);
-    packageJsonData.name = projectName; // Set project name as package name
-    const modifiedPackageJson = JSON.stringify(packageJsonData, null, 2);
-    fs.writeFileSync(packageJsonPath, modifiedPackageJson, "utf8");
-  }
-}
-
-// Main function to start CLI
-async function main() {
+async function run() {
   try {
-    const { template, projectName } = await promptForProjectType();
-    copyTemplate(template, projectName);
-    console.log(`Project '${projectName}' created successfully.`);
+    // Step 1: Clone the repo to a temporary location
+    const git = simpleGit();
+    await fs.remove(tempDir); // Ensure tempDir is clean
+
+    await git.clone(repoUrl, tempDir);
+
+    // Step 2: List available templates
+    const templates = await getTemplates();
+
+    // Step 3: Prompt the user to select a template and specify a new project name
+    const { template, projectName } = await prompt([
+      {
+        type: "list",
+        name: "template",
+        message: "Choose a template to use:",
+        choices: templates,
+      },
+      {
+        type: "input",
+        name: "projectName",
+        message: "Enter the name for your new project:",
+        default: "my-project", // Default project name
+      },
+    ]);
+
+    // Step 4: Copy the selected template to the target directory
+    const targetDir = path.join(process.cwd(), projectName); // Use user-specified project name
+    const templateDir = path.join(tempDir, "templates", template);
+
+    await fs.copy(templateDir, targetDir);
+
+    console.log("Template copied successfully to", targetDir);
   } catch (error) {
-    console.error("Error creating project:", error);
+    console.error("Error:", error);
+  } finally {
+    // Clean up the temporary directory
+    await fs.remove(tempDir);
   }
 }
 
-main();
+run();
