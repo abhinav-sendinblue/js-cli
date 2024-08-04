@@ -14,6 +14,17 @@ async function getTemplates() {
   return templates;
 }
 
+async function getTemplateInstructions(templateDir, projectName) {
+  const instructionsFile = path.join(templateDir, "README.md"); // Assuming instructions are in README.md
+  if (await fs.pathExists(instructionsFile)) {
+    let content = await fs.readFile(instructionsFile, "utf-8");
+    // Replace placeholder with actual project name
+    content = content.replace(/`project-name`/g, projectName);
+    return content;
+  }
+  return "No specific instructions available for this template.";
+}
+
 async function run() {
   try {
     // Step 1: Clone the repo to a temporary location
@@ -48,6 +59,16 @@ async function run() {
     await fs.copy(templateDir, targetDir);
 
     console.log("Template copied successfully to", targetDir);
+
+    // Step 5: Display template-specific instructions
+    const instructions = await getTemplateInstructions(
+      templateDir,
+      projectName
+    );
+    console.log(
+      "\nTo complete the setup, follow these instructions:\n\n",
+      instructions
+    );
   } catch (error) {
     console.error("Error:", error);
   } finally {
