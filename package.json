@@ -1,10 +1,13 @@
 {
-  "name": "js-cli",
+  "name": "@abhinav-sendinblue/js-cli",
   "version": "1.0.0",
   "description": "A simple CLI tool",
   "main": "cli.js",
   "bin": {
     "js-cli": "cli.js"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
   },
   "dependencies": {
     "dotenv": "^10.0.0",
