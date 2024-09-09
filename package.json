@@ -1,10 +1,13 @@
 {
   "name": "@abhinav-sendinblue/js-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A simple CLI tool",
   "main": "cli.js",
   "bin": {
     "js-cli": "cli.js"
+  },
+  "repository": {
+    "url": "https://github.com/abhinav-sendinblue/js-cli"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"
