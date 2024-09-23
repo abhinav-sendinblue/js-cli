@@ -5,20 +5,75 @@ const fs = require("fs-extra");
 const path = require("path");
 const os = require("os");
 
-const repoUrl = "git@github.com:abhinav-sendinblue/js-templates.git"; // Replace with your repo URL
-const tempDir = path.join(os.tmpdir(), "templates-repo");
+// Define repositories with base directory and optional specific templates
+const repos = [
+  {
+    url: "git@github.com:abhinav-sendinblue/js-templates.git",
+    name: "JS Templates",
+    baseDir: "templates",
+    specificTemplates: [], // Optional: List specific templates to include
+  },
+  {
+    url: "git@github.com:dtsl/backstage-templates.git",
+    name: "Backstage Templates",
+    baseDir: "/",
+    specificTemplates: ["react-boilerplate", "monorepo-boilerplate"], // Optional: List specific templates to include
+  },
+  {
+    url: "git@github.com:dtsl/backstage-templates.git",
+    name: "Monorepo subproject",
+    baseDir: "monorepo-boilerplate/packages",
+    specificTemplates: ["example"], // Optional: List specific templates to include
+  },
+];
 
-async function getTemplates() {
-  const templatesDir = path.join(tempDir, "templates"); // Assuming templates are under 'templates' directory
-  const templates = await fs.readdir(templatesDir);
-  return templates;
+const tempDir = path.join(os.tmpdir(), "multi-repo-templates");
+
+async function cloneRepos() {
+  const git = simpleGit();
+  for (let i = 0; i < repos.length; i++) {
+    const repo = repos[i];
+    const repoDir = path.join(tempDir, `repo_${i}`);
+    await fs.remove(repoDir); // Ensure repoDir is clean
+    await git.clone(repo.url, repoDir);
+  }
 }
 
-async function getTemplateInstructions(templateDir, projectName) {
-  const instructionsFile = path.join(templateDir, "README.md"); // Assuming instructions are in README.md
+async function getTemplates() {
+  let allTemplates = [];
+  for (let i = 0; i < repos.length; i++) {
+    const repo = repos[i];
+    const repoDir = path.join(tempDir, `repo_${i}`);
+    const templatesDir = path.join(repoDir, repo.baseDir);
+
+    if (await fs.pathExists(templatesDir)) {
+      const templates = await fs.readdir(templatesDir, { withFileTypes: true });
+      for (const template of templates) {
+        if (template.isDirectory()) {
+          if (repo.specificTemplates && repo.specificTemplates.length > 0) {
+            if (repo.specificTemplates.includes(template.name)) {
+              allTemplates.push({
+                name: `${repo.name}/${template.name}`,
+                value: { name: template.name, repoIndex: i },
+              });
+            }
+          } else {
+            allTemplates.push({
+              name: `${repo.name}/${template.name}`,
+              value: { name: template.name, repoIndex: i },
+            });
+          }
+        }
+      }
+    }
+  }
+  return allTemplates;
+}
+
+async function getTemplateInstructions(templatePath, projectName) {
+  const instructionsFile = path.join(templatePath, "README.md");
   if (await fs.pathExists(instructionsFile)) {
     let content = await fs.readFile(instructionsFile, "utf-8");
-    // Replace placeholder with actual project name
     content = content.replace(/`project-name`/g, projectName);
     return content;
   }
@@ -27,13 +82,10 @@ async function getTemplateInstructions(templateDir, projectName) {
 
 async function run() {
   try {
-    // Step 1: Clone the repo to a temporary location
-    const git = simpleGit();
-    await fs.remove(tempDir); // Ensure tempDir is clean
+    // Step 1: Clone all repositories
+    await cloneRepos();
 
-    await git.clone(repoUrl, tempDir);
-
-    // Step 2: List available templates
+    // Step 2: List available templates from all repos
     const templates = await getTemplates();
 
     // Step 3: Prompt the user to select a template and specify a new project name
@@ -48,13 +100,18 @@ async function run() {
         type: "input",
         name: "projectName",
         message: "Enter the name for your new project:",
-        default: "my-project", // Default project name
+        default: "my-project",
       },
     ]);
 
     // Step 4: Copy the selected template to the target directory
-    const targetDir = path.join(process.cwd(), projectName); // Use user-specified project name
-    const templateDir = path.join(tempDir, "templates", template);
+    const targetDir = path.join(process.cwd(), projectName);
+    const templateDir = path.join(
+      tempDir,
+      `repo_${template.repoIndex}`,
+      repos[template.repoIndex].baseDir,
+      template.name
+    );
 
     await fs.copy(templateDir, targetDir);
 
@@ -69,6 +126,13 @@ async function run() {
       "\nTo complete the setup, follow these instructions:\n\n",
       instructions
     );
+
+    // Step 6: Handle specific template names (if needed)
+    if (template.name === "specific-template-name") {
+      // Add specific handling for this template
+      console.log("Applying specific modifications for this template...");
+      // Add your custom logic here
+    }
   } catch (error) {
     console.error("Error:", error);
   } finally {
